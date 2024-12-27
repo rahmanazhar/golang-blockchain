@@ -8,22 +8,26 @@ import (
 )
 
 type Block struct {
-	Timestamp    int64
-	Data         string
-	PrevHash     string
-	Hash         string
-	Nonce        int
-	Difficulty   int
+	Timestamp  int64
+	Data       string
+	PrevHash   string
+	Hash       string
+	Nonce      int
+	Difficulty int
 }
 
 type Blockchain struct {
 	Blocks []*Block
 }
 
+const DefaultDifficulty = 2
+
 func (b *Block) CalculateHash() string {
 	record := fmt.Sprintf("%d%s%s%d%d", b.Timestamp, b.Data, b.PrevHash, b.Nonce, b.Difficulty)
 	h := sha256.New()
-	h.Write([]byte(record))
+	if _, err := h.Write([]byte(record)); err != nil {
+		return "ERROR_CALCULATING_HASH"
+	}
 	hashed := h.Sum(nil)
 	return hex.EncodeToString(hashed)
 }
@@ -56,13 +60,13 @@ func CreateBlock(data string, prevHash string, difficulty int) *Block {
 }
 
 func NewBlockchain() *Blockchain {
-	genesisBlock := CreateBlock("Genesis Block", "", 2)
+	genesisBlock := CreateBlock("Genesis Block", "", DefaultDifficulty)
 	return &Blockchain{[]*Block{genesisBlock}}
 }
 
 func (bc *Blockchain) AddBlock(data string) {
 	prevBlock := bc.Blocks[len(bc.Blocks)-1]
-	newBlock := CreateBlock(data, prevBlock.Hash, 2)
+	newBlock := CreateBlock(data, prevBlock.Hash, DefaultDifficulty)
 	bc.Blocks = append(bc.Blocks, newBlock)
 }
 

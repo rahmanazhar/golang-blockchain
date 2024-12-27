@@ -40,7 +40,7 @@ func enableCORS(handler http.HandlerFunc) http.HandlerFunc {
 		if corsOrigin == "" {
 			corsOrigin = "http://localhost:3000"
 		}
-		
+
 		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -62,12 +62,22 @@ func (s *BlockchainServer) HandleAddBlock(w http.ResponseWriter, r *http.Request
 
 	var blockData BlockData
 	if err := json.NewDecoder(r.Body).Decode(&blockData); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if blockData.Data == "" {
+		http.Error(w, "Block data cannot be empty", http.StatusBadRequest)
 		return
 	}
 
 	s.bc.AddBlock(blockData.Data)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "success"}); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *BlockchainServer) HandleGetBlockchain(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +86,7 @@ func (s *BlockchainServer) HandleGetBlockchain(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var blocks []Block
+	blocks := make([]Block, 0, len(s.bc.Blocks))
 	for _, b := range s.bc.Blocks {
 		blocks = append(blocks, Block{
 			Timestamp: b.Timestamp,
@@ -93,7 +103,10 @@ func (s *BlockchainServer) HandleGetBlockchain(w http.ResponseWriter, r *http.Re
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *BlockchainServer) SetupRoutes() http.Handler {
